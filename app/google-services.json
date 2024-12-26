@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1045894066173",
+    "project_id": "pchatapp-d7f04",
+    "storage_bucket": "pchatapp-d7f04.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1045894066173:android:2a17d7763e5a607e02b394",
+        "android_client_info": {
+          "package_name": "com.example.chatapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1045894066173-gn6s0oqfpuiioe64urm1vuhmbann4qes.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.chatapp",
+            "certificate_hash": "bc10d6c8849fbb76ab67b8ae073bb7baf7c04b47"
+          }
+        },
+        {
+          "client_id": "1045894066173-csu6fd93v2vsk1q59a0u1kfjb27pouib.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbGbdDFY2C_xV8QPcKtsK6YrrnzpyI3ss"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1045894066173-csu6fd93v2vsk1q59a0u1kfjb27pouib.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
