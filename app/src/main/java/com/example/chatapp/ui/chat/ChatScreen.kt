@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.rounded.CameraAlt
+import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -36,6 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -142,9 +144,11 @@ fun ChatScreen(
                         .wrapContentSize(Alignment.Center)
                 )
                 // Disable user interaction while loading
-                Box(modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0x80000000)))
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0x80000000))
+                )
             }
 
             state.error != null -> {
@@ -177,7 +181,7 @@ fun ChatScreen(
                             .background(MaterialTheme.colorScheme.background)
                             .padding(innerPadding),
                         contentPadding = PaddingValues(8.dp),
-                        ) {
+                    ) {
                         items(messageCollection.messages) { message ->
                             ChatBubble(
                                 message = message,
@@ -196,15 +200,15 @@ fun ChatScreen(
 fun ChatBubble(message: Messages, isCurrentUser: Boolean) {
     // Get the current theme colors
     val backgroundColor = if (isCurrentUser) {
-        MaterialTheme.colorScheme.primary
+        MaterialTheme.colorScheme.primaryContainer
     } else {
-        MaterialTheme.colorScheme.secondary
+        MaterialTheme.colorScheme.secondaryContainer
     }
 
     val textColor = if (isCurrentUser) {
-        Color.White
+        MaterialTheme.colorScheme.onPrimaryContainer
     } else {
-        MaterialTheme.colorScheme.onSurface
+        MaterialTheme.colorScheme.onSecondaryContainer
     }
 
     Row(
@@ -224,12 +228,11 @@ fun ChatBubble(message: Messages, isCurrentUser: Boolean) {
             Text(
                 text = message.text.toString(),
                 color = textColor,
-                style = MaterialTheme.typography.bodyLarge
+                style = MaterialTheme.typography.bodyMedium
             )
         }
     }
 }
-
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -250,14 +253,18 @@ fun BottomAppBarContent(
         ) {
         // Image select button
         IconButton(
-            onClick = { /*  button to select images */ }) {
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.primary, CircleShape),
+            onClick = { /* Select Image */ }
+        ) {
             Icon(
                 imageVector = Icons.Rounded.CameraAlt,
-                contentDescription = "Select Image"
+                contentDescription = "Select Image",
+                tint = MaterialTheme.colorScheme.onPrimary
             )
         }
 
-
+        Spacer(modifier = Modifier.width(8.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
@@ -275,7 +282,11 @@ fun BottomAppBarContent(
                     .weight(1f),
                 value = message,
                 onValueChange = { message = it },
-                placeholder = { Text(text = "Your message") }
+                placeholder = { Text(text = "Enter your message") },
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                )
             )
 
             IconButton(
@@ -291,28 +302,24 @@ fun BottomAppBarContent(
             Spacer(modifier = Modifier.width(6.dp))
 
             // Send button
-            AnimatedVisibility(
-                visible = message.isNotBlank()
-            ) {
-                IconButton(
-                    onClick = {
-                        state.currentLoggedInUser?.let {
-                            viewModel.sendMessage(
-                                chatId = chatId,
-                                sender = state.currentLoggedInUser,
-                                message = Messages(
-                                    text = message,
-                                    timestamp = Timestamp.now(),
-                                    sender = state.currentLoggedInUser
-                                )
+            IconButton(
+                onClick = {
+                    state.currentLoggedInUser?.let {
+                        viewModel.sendMessage(
+                            chatId = chatId,
+                            sender = state.currentLoggedInUser,
+                            message = Messages(
+                                text = message,
+                                timestamp = Timestamp.now(),
+                                sender = state.currentLoggedInUser
                             )
-                        }
-                        message = ""
-                    },
-                    enabled = message.isNotBlank()
-                ) {
-                    Icon(Icons.Default.Send, contentDescription = "Send")
-                }
+                        )
+                    }
+                    message = ""
+                },
+                enabled = message.isNotBlank()
+            ) {
+                Icon(Icons.Default.Send, contentDescription = "Send")
             }
         }
 

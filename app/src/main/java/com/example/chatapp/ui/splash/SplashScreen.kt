@@ -1,44 +1,70 @@
 package com.example.chatapp.ui.splash
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.chatapp.R
 
 @Preview(showBackground = true)
 @Composable
 fun SplashScreen(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .fillMaxSize(),
+            .fillMaxSize()
+            .padding(16.dp) // Padding around the edges
     ) {
+        // Background gradient
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+        )
+
+        // Main content
         Column(
             modifier = Modifier
                 .fillMaxSize(),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
-        ){
-            Text(
-                textAlign = TextAlign.Center,
-                text = "Get ready for an amazing experience!",
-                style = MaterialTheme.typography.headlineLarge
+        ) {
+            // App logo or icon at the top
+            Image(
+                imageVector = Icons.Default.ChatBubble,
+                contentDescription = "App Logo",
+                modifier = Modifier.size(120.dp) // Logo size
             )
-            Spacer(modifier = Modifier.height(46.dp))
-            CircularProgressIndicator()
-        }
 
+            Spacer(modifier = Modifier.height(24.dp)) // Spacing between logo and text
+
+            // Text description with improved styling
+            Text(
+                text = "Get ready for an amazing experience!",
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center
+                )
+            )
+
+            Spacer(modifier = Modifier.height(40.dp)) // Spacing between text and progress indicator
+
+            // Circular progress indicator with customized size and color
+            CircularProgressIndicator(
+                modifier = Modifier.size(50.dp),
+                color = Color.Gray,
+                strokeWidth = 4.dp
+            )
+        }
     }
 }
