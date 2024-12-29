@@ -1,8 +1,10 @@
 package com.example.chatapp.ui.home
 
+import com.example.chatapp.ui.chat.Messages
+
 data class Chat(
     val chatId: String = "",
-    val lastMessage: Message? = null,
+    val lastMessage: Messages? = null,
     val user1: UserData? = null,
     val user2: UserData? = null
 )
@@ -31,7 +33,7 @@ data class UserData(
     val profileUrl: String? = null,
     val email: String = "",
     val status: String = "",
-    val unreadCount: Int = 0
+    val unreadCount: Int = 0,
 )
 
 data class Reaction(

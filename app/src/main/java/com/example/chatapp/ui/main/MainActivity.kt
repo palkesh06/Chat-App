@@ -1,4 +1,4 @@
-package com.example.chatapp.ui
+package com.example.chatapp.ui.main
 
 import android.annotation.SuppressLint
 import android.os.Bundle

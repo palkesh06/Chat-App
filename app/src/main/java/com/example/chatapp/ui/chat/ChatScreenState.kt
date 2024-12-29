@@ -11,7 +11,9 @@ data class ChatScreenState(
     val lastMessage: Messages? = null,
     val messages: MessageCollection? = null,
     val loading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val isTyping : Boolean = false,
+    val status : String = ""
 )
 
 data class MessageCollection (

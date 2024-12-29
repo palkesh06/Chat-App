@@ -131,4 +131,124 @@ class ChatRepository @Inject constructor(
         }
     }
 
+    suspend fun updateUserIsTyping(userId: String, chatId: String, isTyping: Boolean) {
+        try {
+            // Fetch the chat document by chatId
+            val chatDocument = chatCollectionRef.document(chatId).get().await()
+
+            if (chatDocument.exists()) {
+                val chatData = chatDocument.data
+
+                if (chatData != null) {
+                    // Determine which user object to update
+                    val user1 = chatData["user1"] as? Map<*, *>
+                    val user2 = chatData["user2"] as? Map<*, *>
+
+                    val updateField = when (userId) {
+                        user1?.get("userId") -> "user1.isTyping"
+                        user2?.get("userId") -> "user2.isTyping"
+                        else -> null
+                    }
+
+                    if (updateField != null) {
+                        // Update the correct user's isTyping field
+                        chatCollectionRef.document(chatId).update(updateField, isTyping).await()
+                        println("Updated $updateField to $isTyping for user $userId in chat $chatId")
+                    } else {
+                        println("User with userId $userId is not part of chat $chatId.")
+                    }
+                }
+            } else {
+                println("Chat document with id $chatId does not exist.")
+            }
+        } catch (e: Exception) {
+            println("Error updating typing status: ${e.message}")
+        }
+    }
+
+     fun observePartnerUser(chatId: String, userId: String, onResult: (Boolean, String) -> Unit) {
+        chatCollectionRef.document(chatId).addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Log.e("Firestore", "Error listening to chat updates: ${error.message}", error)
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null && snapshot.exists()) {
+                val chatData = snapshot.data
+
+                if (chatData != null) {
+                    // Access user data for user1 and user2
+                    val user1 = chatData["user1"] as? Map<*, *>
+                    val user2 = chatData["user2"] as? Map<*, *>
+
+                    // Determine which user is the partner based on userId
+                    val partnerUserData = when (userId) {
+                        user1?.get("userId") -> user1
+                        user2?.get("userId") -> user2
+                        else -> null
+                    }
+
+                    // If partner user data exists, extract isTyping and status fields
+                    partnerUserData?.let {
+                        val isTyping = it["isTyping"] as? Boolean ?: false
+                        val status = it["status"] as? String ?: ""
+
+                        // Return the observed values
+                        onResult(isTyping, status)
+                    }
+                }
+            }
+        }
+    }
+
+
+    fun updateUserStatus(chatId: String, userId: String, isOnline: Boolean) {
+        chatCollectionRef.document(chatId).get().addOnSuccessListener { documentSnapshot ->
+            if (documentSnapshot.exists()) {
+                val chatData = documentSnapshot.data
+                val user1 = chatData?.get("user1") as? Map<*, *>
+                val user2 = chatData?.get("user2") as? Map<*, *>
+                val updateField = when (userId) {
+                    user1?.get("userId") -> "user1.status"
+                    user2?.get("userId") -> "user2.status"
+                    else -> null
+                }
+                if (updateField != null) {
+                    val isOnline = if (isOnline) "In Chat" else "offline"
+                    chatCollectionRef.document(chatId).update(updateField, isOnline).addOnSuccessListener {
+                        println("Updated $updateField to $isOnline for user $userId in chat $chatId")
+                        }.addOnFailureListener { e ->
+                        println("Error updating user status: ${e.message}")
+                    }
+                } else {
+                    println("User with userId $userId is not part of chat $chatId.")
+                }
+            }
+        }.addOnFailureListener {
+            println("Error fetching chat document: ${it.message}")
+        }
+    }
+
+    suspend fun updateLastMessage (
+        chatId: String,
+        message: Messages
+    ): Result<Unit> {
+        return try {
+            val documentRef = chatCollectionRef.document(chatId)
+
+            // Check if the chat document exists
+            val documentSnapshot = documentRef.get().await()
+
+            if (documentSnapshot.exists()) {
+                // Chat exists, update the messages field
+                documentRef.update("lastMessage", message).await()
+                Log.d("Firestore", "Message sent successfully")
+            }
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            // Handle error
+            Log.e("Firestore", "Error sending message: ${e.message}", e)
+            Result.Failure(e)
+        }
+    }
 }

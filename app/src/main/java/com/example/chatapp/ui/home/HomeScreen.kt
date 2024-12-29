@@ -51,6 +51,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
+import com.example.chatapp.common.utils.getFormattedTimestamp
 import com.example.chatapp.ui.home.components.AddUserDialog
 import com.example.chatapp.ui.signIn.User
 
@@ -335,7 +336,7 @@ fun ChatCard(chatItem: Chat, partnerUser: UserData, onChatClicked: (String) -> U
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = chatItem.lastMessage?.content.toString(),
+                    text = chatItem.lastMessage?.text.toString(),
                     color = Color.Gray,
                     fontSize = 14.sp,
                     maxLines = 1,
@@ -344,11 +345,15 @@ fun ChatCard(chatItem: Chat, partnerUser: UserData, onChatClicked: (String) -> U
             }
 
             // Timestamp
-            Text(
-                text = chatItem.lastMessage?.timestamp.toString(),
-                color = Color.Gray,
-                fontSize = 12.sp
-            )
+            chatItem.lastMessage?.timestamp?.let { timestamp ->
+                val formattedTime = getFormattedTimestamp(timestamp)
+                Text(
+                    text = formattedTime,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Gray
+                )
+            }
         }
     }
 }
