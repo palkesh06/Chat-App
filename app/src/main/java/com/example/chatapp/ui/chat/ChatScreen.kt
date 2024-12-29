@@ -1,7 +1,11 @@
 package com.example.chatapp.ui.chat
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,14 +24,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.Keyboard
@@ -37,6 +43,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -44,6 +51,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -64,9 +72,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
 import com.example.chatapp.common.utils.getFormattedTimestamp
 import com.example.chatapp.ui.home.UserData
 import com.google.firebase.Timestamp
+import kotlinx.coroutines.delay
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,7 +96,7 @@ fun ChatScreen(
     BackHandler {
         focusManager.clearFocus()
         navController.navigateUp()
-        viewmodel.updateUserStatus(chatId,state.currentLoggedInUser?.userId.toString(), false)
+        viewmodel.updateUserStatus(chatId, state.currentLoggedInUser?.userId.toString(), false)
     }
 
     val partnerUser = state.chat?.let {
@@ -130,7 +140,7 @@ fun ChatScreen(
                                 style = MaterialTheme.typography.titleLarge
                             )
                             Text(
-                                text = if( state.status == "") "offline" else state.status,
+                                text = if (state.status == "") "offline" else state.status,
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -142,7 +152,11 @@ fun ChatScreen(
                         onClick = {
                             focusManager.clearFocus()
                             navController.navigateUp()
-                            viewmodel.updateUserStatus(chatId,state.currentLoggedInUser?.userId.toString(), false)
+                            viewmodel.updateUserStatus(
+                                chatId,
+                                state.currentLoggedInUser?.userId.toString(),
+                                false
+                            )
                         }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
@@ -175,7 +189,7 @@ fun ChatScreen(
                     )
                 }
                 .padding(innerPadding)
-        ){
+        ) {
             when {
                 state.loading -> {
                     CircularProgressIndicator(
@@ -294,144 +308,218 @@ fun BottomAppBarContent(
     focusManager: FocusManager
 ) {
     val focusRequester = remember { FocusRequester() }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp)
-            .clickable(
-                onClick = {
-                    focusManager.clearFocus()
-                }
-            )
-    ) {
-        if (state.isTyping) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Start,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.surface,
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Keyboard,
-                    contentDescription = "Typing Indicator",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "${partnerUser?.username} is typing...",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+    val selectedMediaUris = remember { mutableStateListOf<Uri>() }
+    val showDuplicateRemovalSnackbar = remember { mutableStateOf(false) }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris: List<Uri>? ->
+        uris?.let {
+            val initialUris = selectedMediaUris.size
+            val newUris = uris.filter { uri -> !selectedMediaUris.contains(uri) }
+            selectedMediaUris.addAll(newUris)
+
+            if (selectedMediaUris.size != (uris.size + initialUris)) {
+                showDuplicateRemovalSnackbar.value = true
             }
-        }
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-            modifier = Modifier
-                .imePadding()
-                .padding(horizontal = 10.dp)
-                .padding(top = 8.dp),
-
-            ) {
-            // Image select button
-            IconButton(
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.primary, CircleShape),
-                onClick = { /* Select Image */ }
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.CameraAlt,
-                    contentDescription = "Select Image",
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.background(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(25.dp)
-                )
-            ) {
-
-                // Text input
-                var message by remember { mutableStateOf("") }
-                var isTyping by remember { mutableStateOf(false) }
-                TextField(
-                    shape = CircleShape,
-                    modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequester)
-                        .onFocusChanged { focusState ->
-                            if (focusState.isFocused && !isTyping) {
-                                isTyping = true
-                                viewModel.updateUserIsTyping(
-                                    state.currentLoggedInUser?.userId.toString(),
-                                    chatId,
-                                    true
-                                )
-                            } else if (!focusState.isFocused && isTyping) {
-                                isTyping = false
-                                viewModel.updateUserIsTyping(
-                                    state.currentLoggedInUser?.userId.toString(),
-                                    chatId,
-                                    false
-                                )
-                            }
-                        },
-                    value = message,
-                    onValueChange = { message = it },
-                    placeholder = { Text(text = "Enter your message") },
-                    colors = TextFieldDefaults.colors(
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                )
-
-                IconButton(
-                    onClick = {}
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PhotoLibrary,
-                        contentDescription = "Select File"
-                    )
-
-                }
-
-                Spacer(modifier = Modifier.width(6.dp))
-
-                // Send button
-                IconButton(
-                    onClick = {
-                        focusManager.clearFocus()
-                        state.currentLoggedInUser?.let {
-                            viewModel.sendMessage(
-                                chatId = chatId,
-                                sender = state.currentLoggedInUser,
-                                message = Messages(
-                                    text = message,
-                                    timestamp = Timestamp.now(),
-                                    sender = state.currentLoggedInUser
-                                )
-                            )
-                        }
-                        message = ""
-                    },
-                    enabled = message.isNotBlank()
-                ) {
-                    Icon(Icons.Default.Send, contentDescription = "Send")
-                }
-            }
-
         }
     }
 
+    Column {
+        LazyRow {
+            items(selectedMediaUris) { uri ->
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .padding(4.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.background)
+                ) {
+                    Image(
+                        painter = rememberAsyncImagePainter(model = uri),
+                        contentDescription = "Selected media",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(8.dp)) // Ensure image corners match border
+                    )
+
+                    // Close button with a slightly improved design
+                    IconButton(
+                        onClick = { selectedMediaUris.remove(uri) },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .size(24.dp) // Control the size of the icon
+                            .background(
+                                Color.White,
+                                shape = CircleShape
+                            ) // Circular background for the icon
+                            .padding(4.dp) // Padding inside the icon
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Remove File",
+                            tint = Color.Black // Icon color
+                        )
+                    }
+                }
+            }
+        }
+        LaunchedEffect(showDuplicateRemovalSnackbar.value) {
+            if (showDuplicateRemovalSnackbar.value) {
+                delay(2000) // Wait for 2000ms
+                showDuplicateRemovalSnackbar.value = false
+            }
+        }
+        if (showDuplicateRemovalSnackbar.value == true) {
+            Snackbar(
+                content = { Text("Removed already selected files.") },
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+                .clickable(
+                    onClick = {
+                        focusManager.clearFocus()
+                    }
+                )
+        ) {
+            if (state.isTyping) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Start,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Keyboard,
+                        contentDescription = "Typing Indicator",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "${partnerUser?.username} is typing...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .imePadding()
+                    .padding(horizontal = 10.dp)
+                    .padding(top = 8.dp),
+
+                ) {
+
+                // Image select button
+                IconButton(
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.primary, CircleShape),
+                    onClick = { /* Select Image */ }
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.CameraAlt,
+                        contentDescription = "Select Image",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.background(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(25.dp)
+                    )
+                ) {
+
+                    // Text input
+                    var message by remember { mutableStateOf("") }
+                    var isTyping by remember { mutableStateOf(false) }
+                    TextField(
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .weight(1f)
+                            .focusRequester(focusRequester)
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused && !isTyping) {
+                                    isTyping = true
+                                    viewModel.updateUserIsTyping(
+                                        state.currentLoggedInUser?.userId.toString(),
+                                        chatId,
+                                        true
+                                    )
+                                } else if (!focusState.isFocused && isTyping) {
+                                    isTyping = false
+                                    viewModel.updateUserIsTyping(
+                                        state.currentLoggedInUser?.userId.toString(),
+                                        chatId,
+                                        false
+                                    )
+                                }
+                            },
+                        value = message,
+                        onValueChange = { message = it },
+                        placeholder = { Text(text = "Enter your message") },
+                        colors = TextFieldDefaults.colors(
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        ),
+                    )
+
+                    IconButton(
+                        onClick = {
+                            launcher.launch(arrayOf("image/*", "video/*"))
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AttachFile,
+                            contentDescription = "Select File"
+                        )
+
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // Send button
+                    IconButton(
+                        onClick = {
+                            focusManager.clearFocus()
+                            selectedMediaUris.clear()
+                            state.currentLoggedInUser?.let {
+                                viewModel.sendMessage(
+                                    chatId = chatId,
+                                    sender = state.currentLoggedInUser,
+                                    message = Messages(
+                                        text = message,
+                                        timestamp = Timestamp.now(),
+                                        sender = state.currentLoggedInUser
+                                    )
+                                )
+                            }
+                            message = ""
+                        },
+                        enabled = message.isNotBlank()
+                    ) {
+                        Icon(Icons.Default.Send, contentDescription = "Send")
+                    }
+                }
+
+            }
+        }
+    }
 }
+
