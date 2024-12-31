@@ -1,26 +1,35 @@
 package com.example.chatapp.ui.chat
 
+import android.content.ContentResolver
+import android.content.Context
+import android.net.Uri
+import androidx.core.net.toFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chatapp.data.repo.ChatRepository
+import com.example.chatapp.data.repo.CloudinaryManager
 import com.example.chatapp.data.repo.ConnectivityRepository
 import com.example.chatapp.data.repo.UserRepository
 import com.example.chatapp.ui.signIn.User
 import com.example.chatapp.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStream
 import javax.inject.Inject
 
 @HiltViewModel
 class ChatScreenViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val chatRepository: ChatRepository,
-    private val connectivityRepository: ConnectivityRepository
+    private val connectivityRepository: ConnectivityRepository,
+    private val cloudinaryManager: CloudinaryManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ChatScreenState())
@@ -155,5 +164,62 @@ class ChatScreenViewModel @Inject constructor(
             chatRepository.sendMessage(chatId, sender, message)
             chatRepository.updateLastMessage(chatId, message)
         }
+    }
+
+    fun handleMediaAndSendMessage(
+        selectedMediaUris: List<Uri>,
+        context: Context,
+        result: (List<String>) -> Unit
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val uploadedUrls = mutableListOf<String>()
+
+            // Upload media and collect URLs
+            selectedMediaUris.forEach { uri ->
+                val file = uri.toFile(context = context)
+                if (file != null) {
+                    val uploadedUrl = cloudinaryManager.uploadMedia(file)
+                    uploadedUrl?.let { uploadedUrls.add(it) }
+                }
+            }
+
+            result.invoke(uploadedUrls)
+        }
+    }
+
+    fun Uri.toFile(context: Context): File? {
+        val contentResolver: ContentResolver = context.contentResolver
+        val fileName = getFileName(context, this) ?: return null
+        val tempFile = File(context.cacheDir, fileName)
+
+        try {
+            val inputStream: InputStream? = contentResolver.openInputStream(this)
+            val outputStream = FileOutputStream(tempFile)
+
+            inputStream?.use { input ->
+                outputStream.use { output ->
+                    input.copyTo(output)
+                }
+            }
+        } catch (e: IOException) {
+            e.printStackTrace()
+            return null
+        }
+
+        return tempFile
+    }
+
+    fun getFileName(context: Context, uri: Uri): String? {
+        var fileName: String? = null
+        if (uri.scheme == "content") {
+            val cursor = context.contentResolver.query(uri, null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val columnIndex = it.getColumnIndex("_display_name")
+                    fileName = it.getString(columnIndex)
+                }
+            }
+        }
+        return fileName
     }
 }

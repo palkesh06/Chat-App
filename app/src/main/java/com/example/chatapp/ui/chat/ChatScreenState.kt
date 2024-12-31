@@ -25,5 +25,6 @@ data class MessageCollection (
 data class Messages(
     val text: String? = null,
     val timestamp: Timestamp = Timestamp.now(),
-    val sender: User = User()
+    val sender: User = User(),
+    val mediaUrl: List<String> = emptyList()
 )

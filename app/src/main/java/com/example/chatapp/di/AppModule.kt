@@ -2,6 +2,7 @@ package com.example.chatapp.di
 
 import android.content.Context
 import com.example.chatapp.data.repo.ChatRepository
+import com.example.chatapp.data.repo.CloudinaryManager
 import com.example.chatapp.data.repo.ConnectivityRepository
 import com.example.chatapp.data.repo.UserRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -42,6 +43,12 @@ abstract class AppModule {
             db: FirebaseFirestore
         ): ChatRepository{
             return ChatRepository(db)
+        }
+
+        @Singleton
+        @Provides
+        fun providesCloudinaryManager(): CloudinaryManager {
+            return CloudinaryManager()
         }
     }
 

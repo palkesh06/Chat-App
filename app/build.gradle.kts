@@ -67,6 +67,14 @@ dependencies {
     //Gson
     implementation("com.google.code.gson:gson:2.10.1")
 
+    //Cloudinary
+    implementation ("com.cloudinary:cloudinary-android:3.0.2")
+
+    // exoplayer
+    implementation("androidx.media3:media3-exoplayer:1.5.1")
+    implementation("androidx.media3:media3-exoplayer-dash:1.5.1")
+    implementation("androidx.media3:media3-ui:1.5.1")
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

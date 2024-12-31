@@ -1,7 +1,9 @@
 package com.example.chatapp.ui.chat
 
 import android.annotation.SuppressLint
+import android.graphics.Bitmap
 import android.net.Uri
+import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -49,10 +52,12 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -63,20 +68,32 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
+import coil.compose.rememberImagePainter
 import com.example.chatapp.common.utils.getFormattedTimestamp
+import com.example.chatapp.common.utils.getVideoThumbnail
+import com.example.chatapp.common.utils.isVideoUrl
 import com.example.chatapp.ui.home.UserData
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,6 +105,8 @@ fun ChatScreen(
     val viewmodel = hiltViewModel<ChatScreenViewModel>()
     val focusManager = LocalFocusManager.current
     val state = viewmodel.state.collectAsStateWithLifecycle().value
+
+    var showUrlInWholeScreen by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(chatId) {
         viewmodel.getChatDetailWithChatId(chatId)
@@ -231,7 +250,10 @@ fun ChatScreen(
                             items(messageCollection.messages) { message ->
                                 ChatBubble(
                                     message = message,
-                                    isCurrentUser = state.currentLoggedInUser?.userId == message.sender.userId
+                                    isCurrentUser = state.currentLoggedInUser?.userId == message.sender.userId,
+                                    onImageClick = { url ->
+                                        showUrlInWholeScreen = url
+                                    },
                                 )
                             }
                         }
@@ -239,13 +261,61 @@ fun ChatScreen(
                 }
             }
         }
+        showUrlInWholeScreen?.let { mediaUrl ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .clickable { showUrlInWholeScreen = null }
+                    .padding(16.dp)
+            ) {
+                if (isVideoUrl(mediaUrl)) {
+                    val context = LocalContext.current
+                    val player = remember {
+                        ExoPlayer.Builder(context).build()
+                    }
 
+                    val mediaItem = MediaItem.fromUri(mediaUrl)
+                    player.setMediaItem(mediaItem)
+                    player.prepare()
+                    player.play()
+
+                    BackHandler {
+                        player.release()
+                        showUrlInWholeScreen = null
+                    }
+                    AndroidView(
+                        factory = { ctx ->
+                            PlayerView(ctx).apply {
+                                this.player = player
+                                useController = true // Show video controls
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(10.dp)
+                    )
+                } else {
+                    BackHandler {
+                        showUrlInWholeScreen = null
+                    }
+                    Image(
+                        painter = rememberAsyncImagePainter(model = mediaUrl),
+                        contentDescription = "Full-Screen Image",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RectangleShape)
+                    )
+                }
+            }
+        }
     }
 }
 
 
+@SuppressLint("ProduceStateDoesNotAssignValue")
 @Composable
-fun ChatBubble(message: Messages, isCurrentUser: Boolean) {
+fun ChatBubble(message: Messages, isCurrentUser: Boolean, onImageClick: (String) -> Unit) {
     // Get the current theme colors
     val backgroundColor = if (isCurrentUser) {
         MaterialTheme.colorScheme.primaryContainer
@@ -276,6 +346,61 @@ fun ChatBubble(message: Messages, isCurrentUser: Boolean) {
             Column(
                 modifier = Modifier.wrapContentSize()
             ) {
+                // Display media URLs (Images)
+                message.mediaUrl.forEach { mediaUrl ->
+                    if (isVideoUrl(mediaUrl)) {
+                        var thumbnail by remember { mutableStateOf<Bitmap?>(null) }
+                        var isLoading by remember { mutableStateOf(true) }
+
+                        LaunchedEffect(mediaUrl) {
+                            isLoading = true
+                            thumbnail = getVideoThumbnail(mediaUrl)
+                            isLoading = false
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { onImageClick(mediaUrl) } // Handle video click
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.align(Alignment.Center),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                thumbnail?.let {
+                                    Image(
+                                        bitmap = it.asImageBitmap(),
+                                        contentDescription = "Video Thumbnail",
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } ?: Text(
+                                    text = "Error",
+                                    modifier = Modifier.align(Alignment.Center),
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    } else {
+                        Image(
+                            painter = rememberAsyncImagePainter(model = mediaUrl),
+                            contentDescription = "Media",
+                            modifier = Modifier
+                                .wrapContentSize()
+                                .padding(top = 5.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .height(200.dp) // Adjust the height as needed
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable {
+                                    onImageClick(mediaUrl)
+                                }
+                        )
+                    }
+                }
                 // Main message text
                 Text(
                     text = message.text.toString(),
@@ -310,7 +435,7 @@ fun BottomAppBarContent(
     val focusRequester = remember { FocusRequester() }
     val selectedMediaUris = remember { mutableStateListOf<Uri>() }
     val showDuplicateRemovalSnackbar = remember { mutableStateOf(false) }
-
+    val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri>? ->
@@ -494,27 +619,46 @@ fun BottomAppBarContent(
 
                     Spacer(modifier = Modifier.width(6.dp))
 
+                    var isSending by remember { mutableStateOf(false) }
+
                     // Send button
                     IconButton(
                         onClick = {
                             focusManager.clearFocus()
-                            selectedMediaUris.clear()
-                            state.currentLoggedInUser?.let {
-                                viewModel.sendMessage(
-                                    chatId = chatId,
-                                    sender = state.currentLoggedInUser,
-                                    message = Messages(
-                                        text = message,
-                                        timestamp = Timestamp.now(),
-                                        sender = state.currentLoggedInUser
-                                    )
+                            state.currentLoggedInUser?.let { user ->
+                                isSending = true
+                                viewModel.handleMediaAndSendMessage(
+                                    selectedMediaUris = selectedMediaUris,
+                                    context = context,
+                                    result = { urls ->
+                                        viewModel.sendMessage(
+                                            chatId = chatId,
+                                            sender = user,
+                                            message = Messages(
+                                                text = message,
+                                                timestamp = Timestamp.now(),
+                                                sender = user,
+                                                mediaUrl = urls
+                                            )
+                                        )
+                                        selectedMediaUris.clear()
+                                        message = ""
+                                        isSending = false
+                                    }
                                 )
                             }
-                            message = ""
                         },
-                        enabled = message.isNotBlank()
+                        enabled = message.isNotBlank() || selectedMediaUris.isNotEmpty()
                     ) {
-                        Icon(Icons.Default.Send, contentDescription = "Send")
+                        if (isSending) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(Icons.Default.Send, contentDescription = "Send")
+                        }
                     }
                 }
 
