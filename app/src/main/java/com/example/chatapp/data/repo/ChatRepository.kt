@@ -251,4 +251,36 @@ class ChatRepository @Inject constructor(
             Result.Failure(e)
         }
     }
+
+    suspend fun getAllFriends(userId: String): List<String> {
+        return try {
+            val querySnapshot = chatCollectionRef
+                .where(
+                    Filter.or(
+                        Filter.equalTo("user1.userId", userId),
+                        Filter.equalTo("user2.userId", userId)
+                    )
+                )
+                .get()
+                .await()
+
+            // Extracting userIds from the query result
+            val friendsUserIds = mutableListOf<String>()
+            for (document in querySnapshot.documents) {
+                val user1Id = document.getString("user1.userId")
+                val user2Id = document.getString("user2.userId")
+
+                // Add the friend userIds, skipping the current userId
+                if (user1Id != userId) user1Id?.let { friendsUserIds.add(it) }
+                if (user2Id != userId) user2Id?.let { friendsUserIds.add(it) }
+            }
+
+            // Return the list of friends' user IDs
+            friendsUserIds
+
+        }catch (e: Exception){
+            Log.e("Firestore", "Error fetching friends: ${e.message}", e)
+            emptyList()
+        }
+    }
 }

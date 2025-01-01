@@ -1,10 +1,15 @@
 package com.example.chatapp.ui.home
 
+import android.content.ContentResolver
+import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chatapp.data.repo.ChatRepository
+import com.example.chatapp.data.repo.CloudinaryManager
 import com.example.chatapp.data.repo.UserRepository
+import com.example.chatapp.ui.home.Story
 import com.example.chatapp.ui.signIn.User
 import com.example.chatapp.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,12 +17,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStream
 import javax.inject.Inject
+import kotlin.collections.List
+import kotlin.collections.mutableListOf
 
 @HiltViewModel
 class HomeScreenViewModel @Inject constructor(
     private val userRepository: UserRepository,
-    private val chatRepository: ChatRepository
+    private val chatRepository: ChatRepository,
+    private val cloudinaryManager: CloudinaryManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeScreenState())
@@ -110,5 +122,104 @@ class HomeScreenViewModel @Inject constructor(
         }
     }
 
+    fun addImageToStory(selectedUri: Uri, context: Context) {
+        _state.update {
+            it.copy(isAddingToStory = true)
+        }
+        viewModelScope.launch {
+            try {
+                val file = selectedUri.toFile(context)
+                if (file != null) {
+                    val uploadedUrl = cloudinaryManager.uploadMedia(file)
+                    if (uploadedUrl != null) {
+                        userRepository.addToStory(
+                            state.value.currentLoggedInUser?.userId.toString(),
+                            uploadedUrl
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ViewModel", "Error occurred while adding image to story: ${e.message}", e)
+            } finally {
+                _state.update {
+                    it.copy(isAddingToStory = false)
+                }
+            }
+        }
+    }
+
+    fun Uri.toFile(context: Context): File? {
+        val contentResolver: ContentResolver = context.contentResolver
+        val fileName = getFileName(context, this) ?: return null
+        val tempFile = File(context.cacheDir, fileName)
+
+        try {
+            val inputStream: InputStream? = contentResolver.openInputStream(this)
+            val outputStream = FileOutputStream(tempFile)
+
+            inputStream?.use { input ->
+                outputStream.use { output ->
+                    input.copyTo(output)
+                }
+            }
+        } catch (e: IOException) {
+            e.printStackTrace()
+            return null
+        }
+
+        return tempFile
+    }
+
+    fun getFileName(context: Context, uri: Uri): String? {
+        var fileName: String? = null
+        if (uri.scheme == "content") {
+            val cursor = context.contentResolver.query(uri, null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val columnIndex = it.getColumnIndex("_display_name")
+                    fileName = it.getString(columnIndex)
+                }
+            }
+        }
+        return fileName
+    }
+
+
+    fun observeFriendsStory(userId: String) {
+        viewModelScope.launch {
+            try {
+                // Fetch the list of friends' user IDs
+                val friendsUserIds = chatRepository.getAllFriends(userId)
+
+                if (friendsUserIds.isEmpty()) {
+                    Log.d("ViewModel", "No friends found for userId: $userId")
+                    return@launch
+                }
+                // Observe each friend's story
+                userRepository.observeFriendsStory(friendsUserIds + userId) { storyUpdates ->
+                    // Get the current list of stories and ensure the "Add Story" item is at the top
+                    val updatedStories: MutableList<Story> = mutableListOf(Story("Add Story", ""))
+                    storyUpdates?.let { latestStories ->
+                        updatedStories.addAll(latestStories)
+                    }
+
+                    val yourStoryIndex = updatedStories.indexOfFirst { it.name == state.value.currentLoggedInUser?.username }
+                    if (yourStoryIndex != -1 && updatedStories.size > 2) {
+                        val temp = updatedStories[yourStoryIndex]
+                        updatedStories[yourStoryIndex] = updatedStories[1]
+                        updatedStories[1] = temp
+                    }
+                    // Update the state with the new list of stories
+                    _state.update {
+                        it.copy(stories = updatedStories)
+                    }
+                    Log.d("ViewModel", "Story updates received: $storyUpdates")
+                }
+            } catch (e: Exception) {
+                // Log the error
+                Log.e("ViewModel", "Error observing friends' stories", e)
+            }
+        }
+    }
 
 }

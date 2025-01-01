@@ -1,7 +1,12 @@
 package com.example.chatapp.ui.home
 
+import android.net.Uri
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +32,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,7 +48,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -51,6 +60,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
+import com.example.chatapp.R
 import com.example.chatapp.common.utils.getFormattedTimestamp
 import com.example.chatapp.ui.home.components.AddUserDialog
 import com.example.chatapp.ui.signIn.User
@@ -64,6 +74,14 @@ fun HomeScreen(
     var showDialog by remember { mutableStateOf(false) }
 
     val state by viewmodel.state.collectAsStateWithLifecycle()
+
+    var showStory by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(state.currentLoggedInUser?.userId) {
+        state.currentLoggedInUser?.userId?.let { userId ->
+            viewmodel.observeFriendsStory(userId)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -107,12 +125,36 @@ fun HomeScreen(
                     showDialog = false
                 })
             }
+            ChatListScreen(
+                navController = navController,
+                state = state,
+                viewmodel = viewmodel,
+                showStoryCallBack = { url ->
+                    showStory = url
+                }
+            )
+            showStory?.let { mediaUrl ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.7f))
+                        .clickable { showStory = null }
+                        .padding(innerPadding)
+                ) {
+                    BackHandler {
+                        showStory = null
+                    }
+                    Image(
+                        painter = rememberAsyncImagePainter(model = mediaUrl),
+                        contentDescription = "Full-Screen Image",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RectangleShape)
+                    )
+                }
+            }
         }
-        ChatListScreen(
-            modifier = Modifier.padding(innerPadding),
-            navController,
-            state
-        )
+
     }
 }
 
@@ -145,26 +187,21 @@ fun HomeTopBar(username: String) {
     )
 }
 
-data class Story(val name: String, val imageUrl: String, val isAddStory: Boolean = false)
-
 @Composable
 fun ChatListScreen(
-    modifier: Modifier,
     navController: NavController,
-    state: HomeScreenState
+    state: HomeScreenState,
+    viewmodel: HomeScreenViewModel,
+    showStoryCallBack: (String) -> Unit
 ) {
     Column(
-        modifier = modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize()
     ) {
         // Stories Section
         StoriesSection(
-            stories = listOf(
-                Story("Add Story", "", isAddStory = true),
-                Story("Terry", "https://example.com/terry.jpg"),
-                Story("Craig", "https://example.com/craig.jpg"),
-                Story("Roger", "https://example.com/roger.jpg"),
-                Story("Nolan", "https://example.com/nolan.jpg")
-            )
+            state,
+            viewmodel,
+            showStoryCallBack
         )
 
         // Chats Header with Requests Button
@@ -185,14 +222,23 @@ fun ChatListScreen(
 }
 
 @Composable
-fun StoriesSection(stories: List<Story>) {
+fun StoriesSection(
+    state: HomeScreenState,
+    viewmodel: HomeScreenViewModel,
+    showStoryCallBack: (String) -> Unit
+) {
     LazyRow(
         modifier = Modifier
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(stories) { story ->
-            StoryItem(story)
+        items(state.stories) { story ->
+            StoryItem(
+                state,
+                story,
+                viewmodel,
+                showStoryCallBack
+            )
         }
     }
 }
@@ -261,35 +307,80 @@ fun ChatList(
 }
 
 @Composable
-fun StoryItem(story: Story) {
+fun StoryItem(
+    state: HomeScreenState,
+    story: Story,
+    viewmodel: HomeScreenViewModel,
+    showStoryCallBack: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri: Uri? ->
+            uri?.let {
+                viewmodel.addImageToStory(
+                    it,
+                    context
+                )
+            }
+        }
+    )
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
                 .size(64.dp)
                 .background(
-                    if (story.isAddStory) Color.Gray else Color.LightGray,
+                    if (story.imageUrl == "") Color.Gray else Color.LightGray,
                     CircleShape
                 ),
             contentAlignment = Alignment.Center
         ) {
-            if (story.isAddStory) {
+            if (story.imageUrl == "") {
                 IconButton(
-                    onClick = {}
+                    onClick = {
+                        launcher.launch("image/*")
+                    }
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Story", tint = Color.White)
+                    if (state.isAddingToStory) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "Add Story",
+                            tint = Color.White
+                        )
+                    }
                 }
-
             } else {
                 Image(
-                    painter = rememberAsyncImagePainter(model = story.imageUrl),
-                    contentDescription = null,
-                    modifier = Modifier.clip(CircleShape)
+                    painter = rememberAsyncImagePainter(
+                        model = story.imageUrl,
+                        placeholder = painterResource(id = R.drawable.placeholder_image),  // Add a placeholder image
+                        error = painterResource(id = R.drawable.error_image)  // Add an error image
+                    ),
+                    contentDescription = "Story image for ${story.name}",  // Provide content description for accessibility
+                    modifier = Modifier
+                        .size(64.dp)  // Specify a fixed size for the image
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surface)  // Optional: Background color in case image doesn't load
+                        .border(
+                            1.dp,
+                            MaterialTheme.colorScheme.onSurface,
+                            CircleShape
+                        )  // Optional: Border around the image
+                        .clickable {
+                            showStoryCallBack(story.imageUrl.toString())
+                        }
                 )
             }
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = story.name,
+            text = if (story.name == state.currentLoggedInUser?.username) "Your Story" else story.name.toString(),
             style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
