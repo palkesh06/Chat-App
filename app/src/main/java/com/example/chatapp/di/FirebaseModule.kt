@@ -21,7 +21,7 @@ abstract class FirebaseModule {
 
         @Singleton
         @Provides
-        fun provideFirebaseAuthInstance() : FirebaseAuth {
+        fun provideFirebaseAuthInstance(): FirebaseAuth {
             return FirebaseAuth.getInstance()
 
         }

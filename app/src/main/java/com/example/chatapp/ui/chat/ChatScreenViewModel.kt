@@ -3,7 +3,6 @@ package com.example.chatapp.ui.chat
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
-import androidx.core.net.toFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chatapp.data.repo.ChatRepository

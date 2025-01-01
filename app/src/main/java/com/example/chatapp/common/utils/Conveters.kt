@@ -11,7 +11,7 @@ fun isVideoUrl(url: String): Boolean {
     return videoExtensions.any { url.endsWith(it, ignoreCase = true) }
 }
 
-suspend fun getVideoThumbnail(videoUrl: String): Bitmap? =  withContext(Dispatchers.IO) {
+suspend fun getVideoThumbnail(videoUrl: String): Bitmap? = withContext(Dispatchers.IO) {
     try {
         val retriever = MediaMetadataRetriever()
         retriever.setDataSource(videoUrl, HashMap())

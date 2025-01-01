@@ -20,7 +20,8 @@ class ConnectivityRepository @Inject constructor(
 
     init {
         // Observe network connectivity changes
-        connectivityManager.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+        connectivityManager.registerDefaultNetworkCallback(object :
+            ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: android.net.Network) {
                 _isConnected.value = true
             }

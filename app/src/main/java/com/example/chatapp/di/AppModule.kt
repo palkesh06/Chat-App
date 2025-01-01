@@ -12,7 +12,6 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Inject
 import javax.inject.Singleton
 
 @Module
@@ -23,7 +22,7 @@ abstract class AppModule {
         @Provides
         fun provideConnectivityRepository(
             @ApplicationContext context: Context
-        ): ConnectivityRepository{
+        ): ConnectivityRepository {
             return ConnectivityRepository(context)
 
         }
@@ -41,7 +40,7 @@ abstract class AppModule {
         @Provides
         fun providesChatRepository(
             db: FirebaseFirestore
-        ): ChatRepository{
+        ): ChatRepository {
             return ChatRepository(db)
         }
 

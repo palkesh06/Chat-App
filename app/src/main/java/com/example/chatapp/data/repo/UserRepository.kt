@@ -20,7 +20,8 @@ class UserRepository @Inject constructor(
 
     suspend fun getCurrentUser(): User? {
         return try {
-            val querySnapshot = usersCollectionRef.whereEqualTo("userId", auth.currentUser?.uid).get().await()
+            val querySnapshot =
+                usersCollectionRef.whereEqualTo("userId", auth.currentUser?.uid).get().await()
             if (querySnapshot.isEmpty) {
                 null // No user found
             } else {

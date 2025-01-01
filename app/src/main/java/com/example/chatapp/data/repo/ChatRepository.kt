@@ -166,7 +166,7 @@ class ChatRepository @Inject constructor(
         }
     }
 
-     fun observePartnerUser(chatId: String, userId: String, onResult: (Boolean, String) -> Unit) {
+    fun observePartnerUser(chatId: String, userId: String, onResult: (Boolean, String) -> Unit) {
         chatCollectionRef.document(chatId).addSnapshotListener { snapshot, error ->
             if (error != null) {
                 Log.e("Firestore", "Error listening to chat updates: ${error.message}", error)
@@ -215,8 +215,9 @@ class ChatRepository @Inject constructor(
                 }
                 if (updateField != null) {
                     val isOnline = if (isOnline) "In Chat" else "offline"
-                    chatCollectionRef.document(chatId).update(updateField, isOnline).addOnSuccessListener {
-                        println("Updated $updateField to $isOnline for user $userId in chat $chatId")
+                    chatCollectionRef.document(chatId).update(updateField, isOnline)
+                        .addOnSuccessListener {
+                            println("Updated $updateField to $isOnline for user $userId in chat $chatId")
                         }.addOnFailureListener { e ->
                         println("Error updating user status: ${e.message}")
                     }
@@ -229,7 +230,7 @@ class ChatRepository @Inject constructor(
         }
     }
 
-    suspend fun updateLastMessage (
+    suspend fun updateLastMessage(
         chatId: String,
         message: Messages
     ): Result<Unit> {
@@ -278,7 +279,7 @@ class ChatRepository @Inject constructor(
             // Return the list of friends' user IDs
             friendsUserIds
 
-        }catch (e: Exception){
+        } catch (e: Exception) {
             Log.e("Firestore", "Error fetching friends: ${e.message}", e)
             emptyList()
         }

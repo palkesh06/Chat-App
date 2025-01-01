@@ -9,7 +9,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.chatapp.data.repo.ChatRepository
 import com.example.chatapp.data.repo.CloudinaryManager
 import com.example.chatapp.data.repo.UserRepository
-import com.example.chatapp.ui.home.Story
 import com.example.chatapp.ui.signIn.User
 import com.example.chatapp.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,7 +21,6 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import javax.inject.Inject
-import kotlin.collections.List
 import kotlin.collections.mutableListOf
 
 @HiltViewModel
@@ -203,7 +201,8 @@ class HomeScreenViewModel @Inject constructor(
                         updatedStories.addAll(latestStories)
                     }
 
-                    val yourStoryIndex = updatedStories.indexOfFirst { it.name == state.value.currentLoggedInUser?.username }
+                    val yourStoryIndex =
+                        updatedStories.indexOfFirst { it.name == state.value.currentLoggedInUser?.username }
                     if (yourStoryIndex != -1 && updatedStories.size > 2) {
                         val temp = updatedStories[yourStoryIndex]
                         updatedStories[yourStoryIndex] = updatedStories[1]

@@ -16,7 +16,7 @@ import javax.inject.Inject
 class SignInViewModel @Inject constructor(
     private val userRepository: UserRepository,
     connectivityRepository: ConnectivityRepository
-): ViewModel() {
+) : ViewModel() {
 
     val isConnected = connectivityRepository.isConnected.stateIn(
         scope = viewModelScope,
@@ -28,10 +28,12 @@ class SignInViewModel @Inject constructor(
     val state: StateFlow<SignInState> = _state
 
     fun onSignInResult(result: SignInResult) {
-        _state.update { it.copy(
-            isSignInSuccessful = result.data != null,
-            signInError = result.errorMessage
-        ) }
+        _state.update {
+            it.copy(
+                isSignInSuccessful = result.data != null,
+                signInError = result.errorMessage
+            )
+        }
     }
 
 

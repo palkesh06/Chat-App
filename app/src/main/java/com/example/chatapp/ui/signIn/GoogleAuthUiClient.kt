@@ -73,7 +73,7 @@ class GoogleAuthUiClient(
         }
     }
 
-    fun getUserData() : User? = auth.currentUser?.run {
+    fun getUserData(): User? = auth.currentUser?.run {
         User(
             userId = uid,
             email = email.toString(),

@@ -9,11 +9,13 @@ import java.io.File
 
 class CloudinaryManager(
 ) {
-    private val cloudinary = Cloudinary(ObjectUtils.asMap(
-        "cloud_name", "dphlsu76m",
-        "api_key", "587864365714954",
-        "api_secret", "yOyL3Lu30p_gstiPXUT1uQz4LAk"
-    ))
+    private val cloudinary = Cloudinary(
+        ObjectUtils.asMap(
+            "cloud_name", "dphlsu76m",
+            "api_key", "587864365714954",
+            "api_secret", "yOyL3Lu30p_gstiPXUT1uQz4LAk"
+        )
+    )
 
     suspend fun uploadMedia(file: File): String? {
         return withContext(Dispatchers.IO) {
