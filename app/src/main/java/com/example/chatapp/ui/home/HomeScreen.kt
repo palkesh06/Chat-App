@@ -118,6 +118,7 @@ fun HomeScreen(
             }
         }
     ) { innerPadding ->
+
         Box(modifier = Modifier.padding(innerPadding)) {
             if (showDialog) {
                 AddUserDialog(onDismiss = { showDialog = false }, onInvite = { email ->
@@ -125,6 +126,7 @@ fun HomeScreen(
                     showDialog = false
                 })
             }
+
             ChatListScreen(
                 navController = navController,
                 state = state,
@@ -133,6 +135,7 @@ fun HomeScreen(
                     showStory = url
                 }
             )
+
             showStory?.let { mediaUrl ->
                 Box(
                     modifier = Modifier
